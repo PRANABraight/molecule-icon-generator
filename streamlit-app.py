@@ -61,6 +61,76 @@ def cite():
     [![DOI](https://zenodo.org/badge/530035520.svg)](https://zenodo.org/badge/latestdoi/530035520)
     ''')
 
+def generate_molecule(input_type, input_value):
+    """Generate molecule from input"""
+    try:
+        if input_type == 'smiles':
+            return Chem.MolFromSmiles(input_value)
+        elif input_type == 'name':
+            smiles = cirpy.resolve(input_value, 'smiles')
+            return Chem.MolFromSmiles(smiles)
+        elif input_type == 'cas_number':
+            smiles = cirpy.resolve(input_value, 'smiles')
+            return Chem.MolFromSmiles(smiles)
+        elif input_type == 'stdinchi':
+            smiles = cirpy.resolve(input_value, 'smiles') 
+            return Chem.MolFromSmiles(smiles)
+        elif input_type == 'stdinchikey':
+            smiles = cirpy.resolve(input_value, 'smiles')
+            return Chem.MolFromSmiles(smiles)
+        return None
+    except Exception as e:
+        st.error(f"Error generating molecule: {str(e)}")
+        return None
+
+def render_molecule(mol, dimension, settings):
+    """Render molecule with given settings"""
+    try:
+        if dimension == '2D':
+            return mig.icon_print(
+                mol,
+                rdkit_svg=settings.get('rdkit_draw', False),
+                remove_H=settings.get('remove_H', False),
+                atom_color=settings.get('atom_color', None),
+                atom_radius=settings.get('atom_size', 100)/100,
+                pos_multi=settings.get('pos_multi', 300),
+                single_bonds=settings.get('single_bonds', False),
+                shadow=not settings.get('h_shadow', False),
+                shadow_light=settings.get('shadow_light', 1/3)
+            )
+        elif dimension == '3D':
+            return mig.icon_print(
+                mol,
+                rdkit_svg=settings.get('rdkit_draw', False),
+                remove_H=settings.get('remove_H', False),
+                rotation=settings.get('rotation', (0,0,0)),
+                pos_multi=settings.get('pos_multi', 300)
+            )
+        elif dimension == '3D interactive':
+            return mig.graph_3d(
+                mol,
+                rdkit_svg=settings.get('rdkit_draw', False),
+                remove_H=settings.get('remove_H', False),
+                resolution=settings.get('resolution', 30)
+            )
+    except Exception as e:
+        st.error(f"Error rendering molecule: {str(e)}")
+        return None
+
+def save_molecule(mol_image, format, filename="molecule"):
+    """Save molecule in specified format"""
+    try:
+        full_filename = f"{filename}.{format.lower()}"
+        if format == "SVG":
+            mol_image.save(full_filename, format="SVG")
+        else:
+            mol_image.save(full_filename, format=format)
+        with open(full_filename, "rb") as f:
+            return f.read()
+    except Exception as e:
+        st.error(f"Error saving molecule: {str(e)}")
+        return None
+
 
 if __name__ == "__main__":
     # initialize session state
@@ -125,9 +195,10 @@ if __name__ == "__main__":
 
     # setting header, description and citation
     st.set_page_config(page_title="Molecule icons")
-    st.header('''
-    Molecule Icon Generator!
+    st.markdown(''' 
+    # :green[Molecule Icon Generator!🧪]
     ''')
+    
     st.write('''
     Generate icons of molecules from SMILES, Name, Cas-number, Inchi, InChIKey, load your molecule file or convert a
     list of SMILES.
@@ -137,12 +208,18 @@ For more options and information, check out the
 [GitHub repository](https://github.com/lmonari5/molecule-icon-generator.git).\\
 [DOI](https://doi.org/10.5281/zenodo.7388429): 10.5281/ZENODO.7388429.
        ''')
-
+    
+    st.markdown('''### :green[🔬 Input]''')
+    col1, col2 = st.columns(2)
+    
+    
     # select the input type
-    input_type = st.selectbox("Create your icon by",
+    input_type = col1.selectbox("Create your icon by",
                               ['name', 'smiles', 'load file', 'cas_number', 'stdinchi', 'stdinchikey', 'smiles list'],
                               on_change=updatemol,
                               help="""Choose the input info of your molecule. If the app is slow, use SMILES input.""" + smiles_help)
+    
+    
     # default input for each input_type except 'load file'
     def_dict = {'name': 'paracetamol',
                 'smiles': "CC(=O)Nc1ccc(cc1)O",
@@ -165,7 +242,7 @@ For more options and information, check out the
     else:  # load the molecule with cirpy
         load_sdf = False
         smiles_list = False
-        input_string = st.text_input(input_type + ' :', def_dict[input_type], on_change=updatemol,
+        input_string = col2.text_input(input_type + ' :', def_dict[input_type], on_change=updatemol,
                                      help=f'Insert the corresponding {input_type} of your molecule')
 
     place_holder = st.empty()
@@ -639,3 +716,59 @@ border="0" name="submit" title="PayPal - The safer, easier way to pay online!" a
 '''
     st.markdown(html_string, unsafe_allow_html=True)
     st.write('For help or feedback, contact molecule.icon@gmail.com')
+
+
+
+
+st.sidebar.markdown(''' 
+    # :green[Molecule Icon Generator!🧪]
+    ''')
+
+
+st.sidebar.write("Generate molecule icons from various input formats.")
+
+input_type = st.sidebar.selectbox(
+        "Create your icon by",
+        ['name', 'smiles', 'load file', 'cas_number', 'stdinchi', 'stdinchikey', 'smiles list'],
+        on_change=updatemol,
+        help="Choose the input format for your molecule."
+    ) 
+
+
+# Input Type Selection
+input_type = st.sidebar.selectbox(
+    "🔍 Create your icon by:",
+    ['name', 'smiles', 'load file', 'cas_number', 'stdinchi', 'stdinchikey', 'smiles list'],
+    on_change=updatemol,
+    help="Choose the input format for your molecule."
+)
+
+# File Upload
+if input_type == 'load file':
+    mol_file = st.sidebar.file_uploader("📂 Upload a molecule file", type=['sdf', 'mol2', 'pdb'])
+elif input_type == 'smiles list':
+    smiles_list_file = st.sidebar.file_uploader("📂 Upload a SMILES list (txt)", type='txt')
+else:
+    input_string = st.sidebar.text_input(f"✍️ Enter {input_type}:", "")
+
+# Molecule Conformation Options
+st.sidebar.subheader("⚙️ Molecule Settings")
+dimension = st.sidebar.selectbox("🛠️ Structure Type:", ['2D', '3D', '3D interactive'])
+remove_H = st.sidebar.checkbox("🧪 Remove Hydrogen Atoms")
+rdkit_draw = st.sidebar.checkbox("🖊️ Show RDKIT Indices")
+
+# Visual Customization
+st.sidebar.subheader("🎨 Customization")
+change_color = st.sidebar.checkbox("🎨 Change Colors")
+change_size = st.sidebar.checkbox("📏 Adjust Sizes")
+activate_emoji = st.sidebar.checkbox("😀 Use Emoji for Atoms")
+
+if change_color:
+    atom_color = st.sidebar.color_picker("Pick Atom Color", "#ff5733")
+
+if change_size:
+    atom_size = st.sidebar.slider("🔬 Atom Size (%)", 50, 200, 100)
+
+# File Download Format
+st.sidebar.subheader("📥 Download Options")
+download_format = st.sidebar.radio("💾 Choose Format:", ["SVG", "PNG", "JPEG", "PDF"])
